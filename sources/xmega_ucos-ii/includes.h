@@ -1,6 +1,6 @@
 // Select USART to print to
 #define C0 0
-#define D0 1
+#define F0 1
 #define PRINT_TO_USART C0
 
 // CodeVision AVR definitions

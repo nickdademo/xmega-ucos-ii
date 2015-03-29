@@ -3,14 +3,14 @@
 *                                     uC/OS-II on the Atmel ATxmega128A1
 *********************************************************************************************************
 *
-* Project Version:  23rd August 2012
+* Project Version:  24th August 2012
 * uC/OS-II Version: 2.92.01
 *
 * This project has been tested with the following:
 *
-* Target Board:     Atmel AVR XMEGA-A1 Xplain Rev 4 (ATxmega128A1)
-* Programmer:       Atmel AVRISP mkII (via PDI)
-* Debugger:         Atmel JTAGICE mkII (via PDI)
+* Target Board:     Atmel AVR XMEGA-A1 Xplained Rev 7 (ATxmega128A1)
+* Programmer:       Atmel AVR JTAGICE mkII (via JTAG)
+* Debugger:         Atmel AVR JTAGICE mkII (via JTAG)
 * IDE:              Atmel Studio 6 (Version 6.0.1703 - beta)
 * Compiler:         AVRGCC (3.3.2.31)
 * Assembler:        AVRAssembler (2.1.51.24)
@@ -29,7 +29,7 @@
 * 2.    Choose USART to print to in includes.h
 *
 *********************************************************************************************************
-*                                        Atmel AVR Xplain Assignments
+*                                       Atmel AVR Xplained Assignments
 *********************************************************************************************************
 ***************************
 * PORT E LEDs (active-low):
@@ -43,24 +43,22 @@
 * LED6: Toggles when Task 4 is run (every 1000ms) - see below for more details.
 * LED7: Toggles when pushbutton_timer_isr_handler() is invoked (every 20ms) - see below for more details.
 *
-*******************************************
-* PORT F Push-Button Switches (active-low):
-*******************************************
-* SW0:  Prints the CPU USAGE variable to USARTXX.
+************************************************************************
+* PORT D(PD0:PD5) and PORT R(PR0:PR1) Push-Button Switches (active-low):
+************************************************************************
+* SW0:  Prints the OSStatTaskCPUUsage variable to USARTXX.
 * SW1:  Prints the clock speed (F_CPU) to USARTXX.
-* SW2:  Prints the uC/OS-II version (OS_VERSION) and the interrupt enable/disable method
-*       (OS_CRITICAL_METHOD) to USARTXX.
-* SW3:  Prints the tick rate (OS_TICKS_PER_SEC) and the USARTXX RX ring buffer size (in bytes)
-        (RX_BUFFER_SIZE_USARTXX) to USARTXX.
-* SW4:  Prints the number of tasks (APP_CFG_N_TASKS) to USARTXX.
-* SW5:  Prints the Start Task stack size (in bytes) (APP_CFG_TASK_START_STK_SIZE) to USARTXX.
-* SW6:  Prints the task stack size (in bytes) (APP_CFG_TASK_START_STK_SIZE) to USARTXX.
+* SW2:  Prints the uC/OS-III version (OS_VERSION) and the interrupt enable/disable method (CPU_CFG_CRITICAL_METHOD) to USARTXX.
+* SW3:  Prints the tick rate (OS_CFG_TICK_RATE_HZ) and the USARTF0 RX ring buffer size (in bytes) (USARTXX_RX_BUFFER_SIZE_BYTES) to USARTXX.
+* SW4:  Prints "Push-Button 4 press detected." to USARTXX.
+* SW5:  Prints "Push-Button 5 press detected." to USARTXX.
+* SW6:  Prints "Push-Button 6 press detected." to USARTXX.
 * SW7:  Toggles ON/OFF the printing of the CPU USAGE variable to USARTXX every 1000ms.
 *
 * USARTC0 Pinouts:  PC2: RX
 *                   PC3: TX
-* USARTD0 Pinouts:  PD2: RX
-*                   PD3: TX
+* USARTF0 Pinouts:  PF2: RX
+*                   PF3: TX
 *
 * Note: Data sent to the USARTXX RX pin is echoed back to the USARTXX TX pin by Task 1.
 *
@@ -89,16 +87,16 @@ unsigned int rx_wr_index_usartc0=0,rx_rd_index_usartc0=0;
 volatile unsigned int rx_counter_usartc0=0;
 volatile bool rx_buffer_overflow_usartc0=false;
 
-// USARTD0 Receiver buffer
-#define USARTD0_RX_BUFFER_SIZE_BYTES 512
-char rx_buffer_usartd0[USARTD0_RX_BUFFER_SIZE_BYTES];
-unsigned int rx_wr_index_usartd0=0,rx_rd_index_usartd0=0;
-volatile unsigned int rx_counter_usartd0=0;
-volatile bool rx_buffer_overflow_usartd0=false;
+// USARTF0 Receiver buffer
+#define USARTF0_RX_BUFFER_SIZE_BYTES 512
+char rx_buffer_usartf0[USARTF0_RX_BUFFER_SIZE_BYTES];
+unsigned int rx_wr_index_usartf0=0,rx_rd_index_usartf0=0;
+volatile unsigned int rx_counter_usartf0=0;
+volatile bool rx_buffer_overflow_usartf0=false;
 
 // Semaphore declarations
 OS_EVENT *usartc0_rx;
-OS_EVENT *usartd0_rx;
+OS_EVENT *usartf0_rx;
 OS_EVENT *pushbutton_event;
 
 /*
@@ -112,7 +110,7 @@ void AVRInit(void);
 void PortsInit(void);
 void SystemClocksInit(void);
 void USARTC0Init(void);
-void USARTD0Init(void);
+void USARTF0Init(void);
 void PushButtonTimerInit(void);
 void tc0_disable(TC0_t *ptc);
 void tc1_disable(TC1_t *ptc);
@@ -121,9 +119,9 @@ void ClockTickStart(void);
 #if PRINT_TO_USART == C0
 char getchar_usartc0(void);
 int usartc0_putchar(char c, FILE *stream);
-#elif PRINT_TO_USART == D0
-char getchar_usartd0(void);
-int usartd0_putchar(char c, FILE *stream);
+#elif PRINT_TO_USART == F0
+char getchar_usartf0(void);
+int usartf0_putchar(char c, FILE *stream);
 #endif
 
 /*
@@ -135,8 +133,8 @@ int usartd0_putchar(char c, FILE *stream);
 // Set the standard output stream
 #if PRINT_TO_USART == C0
 static FILE mystdout = FDEV_SETUP_STREAM(usartc0_putchar, NULL, _FDEV_SETUP_WRITE);
-#elif PRINT_TO_USART == D0
-static FILE mystdout = FDEV_SETUP_STREAM(usartd0_putchar, NULL, _FDEV_SETUP_WRITE);
+#elif PRINT_TO_USART == F0
+static FILE mystdout = FDEV_SETUP_STREAM(usartf0_putchar, NULL, _FDEV_SETUP_WRITE);
 #endif
 
 int main(void)
@@ -159,7 +157,7 @@ int main(void)
                     (INT16U          )(OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
     // Create semaphores
     usartc0_rx=OSSemCreate(0);
-    usartd0_rx=OSSemCreate(0);
+    usartf0_rx=OSSemCreate(0);
     pushbutton_event=OSSemCreate(0);
     // Start multi-tasking
     OSStart();
@@ -205,11 +203,11 @@ static void Task1(void *p_arg)
         OSSemPend(usartc0_rx,0,&err);
         // Echo data received
         printf("%c", getchar_usartc0());
-        #elif PRINT_TO_USART == D0
+        #elif PRINT_TO_USART == F0
         // Wait on semaphore
-        OSSemPend(usartd0_rx,0,&err);
+        OSSemPend(usartf0_rx,0,&err);
         // Echo data received
-        printf("%c", getchar_usartd0());
+        printf("%c", getchar_usartf0());
         #endif
     }
 } // Task1()
@@ -276,11 +274,11 @@ static void Task5(void *p_arg)
             case 0x08:  
                         printf("Push-Button 3 press detected. OS_TICKS_PER_SEC=%d, USARTC0_RX_BUFFER_SIZE_BYTES=%d bytes\n",OS_TICKS_PER_SEC, USARTC0_RX_BUFFER_SIZE_BYTES);
                         break;
-            #elif PRINT_TO_USART == D0
+            #elif PRINT_TO_USART == F0
             case 0x08:  
-                        printf("Push-Button 3 press detected. OS_TICKS_PER_SEC=%d, USARTD0_RX_BUFFER_SIZE_BYTES=%d bytes\n",OS_TICKS_PER_SEC, USARTD0_RX_BUFFER_SIZE_BYTES);
+                        printf("Push-Button 3 press detected. OS_TICKS_PER_SEC=%d, USARTF0_RX_BUFFER_SIZE_BYTES=%d bytes\n",OS_TICKS_PER_SEC, USARTF0_RX_BUFFER_SIZE_BYTES);
                         break;          
-            #endif                          
+            #endif  
             case 0x10:  printf("Push-Button 4 press detected. APP_CFG_N_TASKS=%d\n",APP_CFG_N_TASKS);
                         break;
             case 0x20:  printf("Push-Button 5 press detected. APP_CFG_TASK_START_STK_SIZE=%d bytes\n",APP_CFG_TASK_START_STK_SIZE);
@@ -385,17 +383,17 @@ void AVRInit(void)
     PortsInit();
     #if PRINT_TO_USART == C0
     USARTC0Init();
-    #elif PRINT_TO_USART == D0
-    USARTD0Init();
+    #elif PRINT_TO_USART == F0
+    USARTF0Init();
     #endif
     PushButtonTimerInit();
 } // AVRInit()
 
 void PortsInit(void)
 {
-    /* PORTA initialization */
-    /* PORTB initialization */
-    /* PORTC initialization */
+    // PORTA initialization
+    // PORTB initialization
+    // PORTC initialization
         // OUT register
         PORTC.OUT=0x08;
         // Bit0: Input
@@ -469,48 +467,48 @@ void PortsInit(void)
         // Bit6 pin change interrupt 1: Off
         // Bit7 pin change interrupt 1: Off
         PORTC.INT1MASK=0x00;
-    /* PORTD initialization */
+    // PORTD initialization
         // OUT register
-        PORTD.OUT=0x08;
+        PORTD.OUT=0x00;
         // Bit0: Input
         // Bit1: Input
         // Bit2: Input
-        // Bit3: Output
+        // Bit3: Input
         // Bit4: Input
         // Bit5: Input
         // Bit6: Input
         // Bit7: Input
-        PORTD.DIR=0x08;
-        // Bit0 Output/Pull configuration: Totempole/No
-        // Bit0 Input/Sense configuration: Sense both edges
-        // Bit0 inverted: Off
+        PORTD.DIR=0x00;
+        // Bit0 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit0 Input/Sense configuration: Sense falling edge
+        // Bit0 inverted: On
         // Bit0 slew rate limitation: Off
-        PORTD.PIN0CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
-        // Bit1 Output/Pull configuration: Totempole/No
-        // Bit1 Input/Sense configuration: Sense both edges
-        // Bit1 inverted: Off
+        PORTD.PIN0CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+        // Bit1 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit1 Input/Sense configuration: Sense falling edge
+        // Bit1 inverted: On
         // Bit1 slew rate limitation: Off
-        PORTD.PIN1CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
-        // Bit2 Output/Pull configuration: Totempole/No
-        // Bit2 Input/Sense configuration: Sense both edges
-        // Bit2 inverted: Off
+        PORTD.PIN1CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+        // Bit2 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit2 Input/Sense configuration: Sense falling edge
+        // Bit2 inverted: On
         // Bit2 slew rate limitation: Off
-        PORTD.PIN2CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
-        // Bit3 Output/Pull configuration: Totempole/No
-        // Bit3 Input/Sense configuration: Sense both edges
-        // Bit3 inverted: Off
+        PORTD.PIN2CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+        // Bit3 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit3 Input/Sense configuration: Sense falling edge
+        // Bit3 inverted: On
         // Bit3 slew rate limitation: Off
-        PORTD.PIN3CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
-        // Bit4 Output/Pull configuration: Totempole/No
-        // Bit4 Input/Sense configuration: Sense both edges
-        // Bit4 inverted: Off
+        PORTD.PIN3CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+        // Bit4 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit4 Input/Sense configuration: Sense falling edge
+        // Bit4 inverted: On
         // Bit4 slew rate limitation: Off
-        PORTD.PIN4CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
-        // Bit5 Output/Pull configuration: Totempole/No
-        // Bit5 Input/Sense configuration: Sense both edges
-        // Bit5 inverted: Off
+        PORTD.PIN4CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+        // Bit5 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit5 Input/Sense configuration: Sense falling edge
+        // Bit5 inverted: On
         // Bit5 slew rate limitation: Off
-        PORTD.PIN5CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        PORTD.PIN5CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
         // Bit6 Output/Pull configuration: Totempole/No
         // Bit6 Input/Sense configuration: Sense both edges
         // Bit6 inverted: Off
@@ -542,8 +540,8 @@ void PortsInit(void)
         // Bit5 pin change interrupt 1: Off
         // Bit6 pin change interrupt 1: Off
         // Bit7 pin change interrupt 1: Off
-        PORTD.INT1MASK=0x00;
-    /* PORTE initialization */
+        PORTD.INT1MASK=0x00;    
+    // PORTE initialization
         // OUT register
         PORTE.OUT=0x00;
         // Bit0: Output
@@ -617,62 +615,62 @@ void PortsInit(void)
         // Bit6 pin change interrupt 1: Off
         // Bit7 pin change interrupt 1: Off
         PORTE.INT1MASK=0x00;
-    /* PORTF initialization */
+    // PORTF initialization
         // OUT register
-        PORTF.OUT=0x00;
+        PORTF.OUT=0x08;
         // Bit0: Input
         // Bit1: Input
         // Bit2: Input
-        // Bit3: Input
+        // Bit3: Output
         // Bit4: Input
         // Bit5: Input
         // Bit6: Input
         // Bit7: Input
-        PORTF.DIR=0x00;
-        // Bit0 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit0 Input/Sense configuration: Sense falling edge
-        // Bit0 inverted: On
+        PORTF.DIR=0x08;
+        // Bit0 Output/Pull configuration: Totempole/No
+        // Bit0 Input/Sense configuration: Sense both edges
+        // Bit0 inverted: Off
         // Bit0 slew rate limitation: Off
-        PORTF.PIN0CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Bit1 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit1 Input/Sense configuration: Sense falling edge
-        // Bit1 inverted: On
+        PORTF.PIN0CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Bit1 Output/Pull configuration: Totempole/No
+        // Bit1 Input/Sense configuration: Sense both edges
+        // Bit1 inverted: Off
         // Bit1 slew rate limitation: Off
-        PORTF.PIN1CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Bit2 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit2 Input/Sense configuration: Sense falling edge
-        // Bit2 inverted: On
+        PORTF.PIN1CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Bit2 Output/Pull configuration: Totempole/No
+        // Bit2 Input/Sense configuration: Sense both edges
+        // Bit2 inverted: Off
         // Bit2 slew rate limitation: Off
-        PORTF.PIN2CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Bit3 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit3 Input/Sense configuration: Sense falling edge
-        // Bit3 inverted: On
+        PORTF.PIN2CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Bit3 Output/Pull configuration: Totempole/No
+        // Bit3 Input/Sense configuration: Sense both edges
+        // Bit3 inverted: Off
         // Bit3 slew rate limitation: Off
-        PORTF.PIN3CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Bit4 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit4 Input/Sense configuration: Sense falling edge
-        // Bit4 inverted: On
+        PORTF.PIN3CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Bit4 Output/Pull configuration: Totempole/No
+        // Bit4 Input/Sense configuration: Sense both edges
+        // Bit4 inverted: Off
         // Bit4 slew rate limitation: Off
-        PORTF.PIN4CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Bit5 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit5 Input/Sense configuration: Sense falling edge
-        // Bit5 inverted: On
+        PORTF.PIN4CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Bit5 Output/Pull configuration: Totempole/No
+        // Bit5 Input/Sense configuration: Sense both edges
+        // Bit5 inverted: Off
         // Bit5 slew rate limitation: Off
-        PORTF.PIN5CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Bit6 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit6 Input/Sense configuration: Sense falling edge
-        // Bit6 inverted: On
+        PORTF.PIN5CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Bit6 Output/Pull configuration: Totempole/No
+        // Bit6 Input/Sense configuration: Sense both edges
+        // Bit6 inverted: Off
         // Bit6 slew rate limitation: Off
-        PORTF.PIN6CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Bit7 Output/Pull configuration: Totempole/Pull-up (on input)
-        // Bit7 Input/Sense configuration: Sense falling edge
-        // Bit7 inverted: On
+        PORTF.PIN6CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Bit7 Output/Pull configuration: Totempole/No
+        // Bit7 Input/Sense configuration: Sense both edges
+        // Bit7 inverted: Off
         // Bit7 slew rate limitation: Off
-        PORTF.PIN7CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-        // Interrupt 0 level: Low
+        PORTF.PIN7CTRL=PORT_OPC_TOTEM_gc | PORT_ISC_BOTHEDGES_gc;
+        // Interrupt 0 level: Disabled
         // Interrupt 1 level: Disabled
-        PORTF.INTCTRL=(PORTF.INTCTRL & (~(PORT_INT1LVL_gm | PORT_INT0LVL_gm))) |
-            PORT_INT1LVL_OFF_gc | PORT_INT0LVL_LO_gc;
+        PORTF.INTCTRL=(PORTD.INTCTRL & (~(PORT_INT1LVL_gm | PORT_INT0LVL_gm))) |
+            PORT_INT1LVL_OFF_gc | PORT_INT0LVL_OFF_gc;
         // Bit0 pin change interrupt 0: Off
         // Bit1 pin change interrupt 0: Off
         // Bit2 pin change interrupt 0: Off
@@ -691,11 +689,43 @@ void PortsInit(void)
         // Bit6 pin change interrupt 1: Off
         // Bit7 pin change interrupt 1: Off
         PORTF.INT1MASK=0x00;
-    /* PORTH initialization */
-    /* PORTJ initialization */
-    /* PORTK initialization */
-    /* PORTQ initialization */
-    /* PORTR initialization */  
+    // PORTG initialization
+    // PORTH initialization
+    // PORTI initialization
+    // PORTJ initialization
+    // PORTK initialization
+    // PORTL initialization
+    // PORTM initialization
+    // PORTN initialization
+    // PORTO initialization
+    // PORTP initialization
+    // PORTQ initialization
+    // PORTR initialization
+        // OUT register
+        PORTR.OUT=0x00;
+        // Bit0: Input
+        // Bit1: Input
+        PORTR.DIR=0x00;
+        // Bit0 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit0 Input/Sense configuration: Sense falling edge
+        // Bit0 inverted: On
+        // Bit0 slew rate limitation: Off
+        PORTR.PIN0CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+        // Bit1 Output/Pull configuration: Totempole/Pull-up (on input)
+        // Bit1 Input/Sense configuration: Sense falling edge
+        // Bit1 inverted: On
+        // Bit1 slew rate limitation: Off
+        PORTR.PIN1CTRL=PORT_INVEN_bm | PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+        // Interrupt 0 level: Disabled
+        // Interrupt 1 level: Disabled
+        PORTR.INTCTRL=(PORTR.INTCTRL & (~(PORT_INT1LVL_gm | PORT_INT0LVL_gm))) |
+            PORT_INT1LVL_OFF_gc | PORT_INT0LVL_OFF_gc;
+        // Bit0 pin change interrupt 0: Off
+        // Bit1 pin change interrupt 0: Off
+        PORTR.INT0MASK=0x00;
+        // Bit0 pin change interrupt 1: Off
+        // Bit1 pin change interrupt 1: Off
+        PORTR.INT1MASK=0x00;    
 } // PortsInit()
 
 // System clocks initialization
@@ -818,8 +848,8 @@ void USARTC0Init(void)
     #endif
 } // USARTC0Init()
 
-// USART_D0 initialization
-void USARTD0Init(void)
+// USART_F0 initialization
+void USARTF0Init(void)
 {
     // Note: the correct PORTD direction for the RxD, TxD and XCK signals
     // is configured in the PortsInit function
@@ -832,41 +862,41 @@ void USARTD0Init(void)
     // Data bits: 8
     // Stop bits: 1
     // Parity: Disabled
-    USARTD0.CTRLC=USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_CHSIZE_8BIT_gc;
+    USARTF0.CTRLC=USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_CHSIZE_8BIT_gc;
 
     // Receive complete interrupt: High Level
     // Transmit complete interrupt: Disabled
     // Data register empty interrupt: Disabled
-    USARTD0.CTRLA=(USARTD0.CTRLA & (~(USART_RXCINTLVL_gm | USART_TXCINTLVL_gm | USART_DREINTLVL_gm))) |
+    USARTF0.CTRLA=(USARTF0.CTRLA & (~(USART_RXCINTLVL_gm | USART_TXCINTLVL_gm | USART_DREINTLVL_gm))) |
         USART_RXCINTLVL_HI_gc | USART_TXCINTLVL_OFF_gc | USART_DREINTLVL_OFF_gc;
 
     #if F_CPU==2000000
     // Required Baud rate: 9600
     // Real Baud Rate: 9601.0 (x2 Mode), Error: 0.0 %
-    USARTD0.BAUDCTRLA=0x85;
-    USARTD0.BAUDCTRLB=((0x09 << USART_BSCALE_bp) & USART_BSCALE_gm) | 0x0C;
+    USARTF0.BAUDCTRLA=0x85;
+    USARTF0.BAUDCTRLB=((0x09 << USART_BSCALE_bp) & USART_BSCALE_gm) | 0x0C;
 
     // Receiver: On
     // Transmitter: On
     // Double transmission speed mode: On
     // Multi-processor communication mode: Off
-    USARTD0.CTRLB=(USARTD0.CTRLB & (~(USART_RXEN_bm | USART_TXEN_bm | USART_CLK2X_bm | USART_MPCM_bm | USART_TXB8_bm))) |
+    USARTF0.CTRLB=(USARTF0.CTRLB & (~(USART_RXEN_bm | USART_TXEN_bm | USART_CLK2X_bm | USART_MPCM_bm | USART_TXB8_bm))) |
         USART_RXEN_bm | USART_TXEN_bm | USART_CLK2X_bm;
 
     #elif F_CPU==32000000
     // Required Baud rate: 9600
     // Real Baud Rate: 9601.0 (x1 Mode), Error: 0.0 %
-    USARTD0.BAUDCTRLA=0xF5;
-    USARTD0.BAUDCTRLB=((0x0C << USART_BSCALE_bp) & USART_BSCALE_gm) | 0x0C;
+    USARTF0.BAUDCTRLA=0xF5;
+    USARTF0.BAUDCTRLB=((0x0C << USART_BSCALE_bp) & USART_BSCALE_gm) | 0x0C;
 
     // Receiver: On
     // Transmitter: On
     // Double transmission speed mode: Off
     // Multi-processor communication mode: Off
-    USARTD0.CTRLB=(USARTD0.CTRLB & (~(USART_RXEN_bm | USART_TXEN_bm | USART_CLK2X_bm | USART_MPCM_bm | USART_TXB8_bm))) |
+    USARTF0.CTRLB=(USARTF0.CTRLB & (~(USART_RXEN_bm | USART_TXEN_bm | USART_CLK2X_bm | USART_MPCM_bm | USART_TXB8_bm))) |
         USART_RXEN_bm | USART_TXEN_bm;
     #endif
-} // USARTD0Init()
+} // USARTF0Init()
 
 void PushButtonTimerInit(void)
 {
@@ -1035,9 +1065,9 @@ int usartc0_putchar(char c, FILE *stream)
     return 0;
 } // usartc0_putchar()
 
-#elif PRINT_TO_USART == D0
-// Receive a character from USARTD0
-char getchar_usartd0(void)
+#elif PRINT_TO_USART == F0
+// Receive a character from USARTF0
+char getchar_usartf0(void)
 {
     // Local variables
     char data;
@@ -1045,28 +1075,28 @@ char getchar_usartd0(void)
         OS_CPU_SR cpu_sr;
     #endif
     
-    while (rx_counter_usartd0==0);
-        data=rx_buffer_usartd0[rx_rd_index_usartd0++];
+    while (rx_counter_usartf0==0);
+        data=rx_buffer_usartf0[rx_rd_index_usartf0++];
     
-    if (rx_rd_index_usartd0 == USARTD0_RX_BUFFER_SIZE_BYTES)
-            rx_rd_index_usartd0=0;
+    if (rx_rd_index_usartf0 == USARTF0_RX_BUFFER_SIZE_BYTES)
+            rx_rd_index_usartf0=0;
 
     OS_ENTER_CRITICAL();
-    --rx_counter_usartd0;
+    --rx_counter_usartf0;
     OS_EXIT_CRITICAL();
     return data;
-} // getchar_usartd0()
+} // getchar_usartf0()
 
-int usartd0_putchar(char c, FILE *stream)
+int usartf0_putchar(char c, FILE *stream)
 {
     if (c == '\n')
-        usartd0_putchar('\r', stream);
+        usartf0_putchar('\r', stream);
     // Wait for the transmit buffer to be empty
-    while (!( USARTD0.STATUS & USART_DREIF_bm));
+    while (!( USARTF0.STATUS & USART_DREIF_bm));
     // Put our character into the transmit buffer
-    USARTD0.DATA = c;
+    USARTF0.DATA = c;
     return 0;
-} // usartd0_putchar()
+} // usartf0_putchar()
 #endif
 
 /*
@@ -1183,26 +1213,26 @@ void usartc0_rx_isr_handler(void)
     OSSemPost(usartc0_rx);
 } // usartc0_rx_isr_handler()
 
-void usartd0_rx_isr_handler(void)
+void usartf0_rx_isr_handler(void)
 {
     unsigned char status;
     char data;
-    status=USARTD0.STATUS;
-    data=USARTD0.DATA;
+    status=USARTF0.STATUS;
+    data=USARTF0.DATA;
     if ((status & (USART_FERR_bm | USART_PERR_bm | USART_BUFOVF_bm)) == 0)
     {
-        rx_buffer_usartd0[rx_wr_index_usartd0++]=data;
-        if (rx_wr_index_usartd0 == USARTD0_RX_BUFFER_SIZE_BYTES)
-            rx_wr_index_usartd0=0;
-        if (++rx_counter_usartd0 == USARTD0_RX_BUFFER_SIZE_BYTES)
+        rx_buffer_usartf0[rx_wr_index_usartf0++]=data;
+        if (rx_wr_index_usartf0 == USARTF0_RX_BUFFER_SIZE_BYTES)
+            rx_wr_index_usartf0=0;
+        if (++rx_counter_usartf0 == USARTF0_RX_BUFFER_SIZE_BYTES)
         {
-            rx_counter_usartd0=0;
-            rx_buffer_overflow_usartd0=true;
+            rx_counter_usartf0=0;
+            rx_buffer_overflow_usartf0=true;
         }
     }
     // Post semaphore
-    OSSemPost(usartd0_rx);
-} // usartd0_rx_isr_handler()
+    OSSemPost(usartf0_rx);
+} // usartf0_rx_isr_handler()
 
 void pushbutton_timer_isr_handler(void)
 {
@@ -1213,8 +1243,8 @@ void pushbutton_timer_isr_handler(void)
     static INT8U newState;
     static INT8U count;
     static bool edge=false;
-    // Read state of push-buttons (PORTF)
-    newState=PORTF.IN;
+    // Read state of push-buttons: SW0->{PORTD(PD0:PD5),PORTR(PR0:PR1)}<-SW7
+    newState=(PORTD.IN&0x3F)|((PORTR.IN<<6)&0xC0);
     // Toggle LED7
     PORTE.OUTTGL=0x80;  
     // Increment counter if state remains the same
@@ -1228,7 +1258,7 @@ void pushbutton_timer_isr_handler(void)
     }                      
     // Save current state as old state
     oldState = newState;
-    // If state of push-buttons stays constant for more than 80ms, button press event has occurred.
+    // If state of push-buttons stays constant for more than 80ms, button press event has occured.
     // Note: The edge flag ensures that holding down the button doesn't produce multiple events.
     if ((count>4)&&(edge))
     {

@@ -143,7 +143,7 @@
 
     .extern   TickISR
 	.extern   usartc0_rx_isr
-	.extern   usartd0_rx_isr
+	.extern   usartf0_rx_isr
 	.extern   pushbutton_timer_isr
 
 
@@ -243,7 +243,7 @@ __vector_84:    JMP     __unhandled_interrupt      ;     84       0x014C       T
 __vector_85:    JMP     __unhandled_interrupt      ;     85       0x0150       Timer D1 Compare or Capture A
 __vector_86:    JMP     __unhandled_interrupt      ;     86       0x0154       Timer D1 Compare or Capture B
 __vector_87:    JMP     __unhandled_interrupt      ;     87       0x0158       SPI   D
-__vector_88:    JMP     usartd0_rx_isr		       ;     88       0x015C       USART D0 Rx Complete
+__vector_88:    JMP     __unhandled_interrupt      ;     88       0x015C       USART D0 Rx Complete
 __vector_89:    JMP     __unhandled_interrupt      ;     89       0x0160       USART D0 Data Register Empty
 __vector_90:    JMP     __unhandled_interrupt      ;     90       0x0164       USART D0 Tx Complete
 __vector_91:    JMP     __unhandled_interrupt      ;     91       0x0168       USART D1 RxComplete
@@ -274,11 +274,11 @@ __vector_115:   JMP     __unhandled_interrupt      ;    115       0x01C8       T
 __vector_116:   JMP     __unhandled_interrupt      ;    116       0x01CC       Timer F1 Compare or Capture A
 __vector_117:   JMP     __unhandled_interrupt      ;    117       0x01D0       Timer F1 Compare or Capture B
 __vector_118:   JMP     __unhandled_interrupt      ;    118       0x01D4       SPI F
-__vector_119:   JMP     __unhandled_interrupt      ;    119       0x01D8       USART F0 Rx  Complete
+__vector_119:   JMP     usartf0_rx_isr             ;    119       0x01D8       USART F0 Rx  Complete
 __vector_120:   JMP     __unhandled_interrupt      ;    120       0x01DC       USART F0 Data Register Empty
 __vector_121:   JMP     __unhandled_interrupt      ;    121       0x01E0       USART F0 Tx Complete
 __vector_122:   JMP     __unhandled_interrupt      ;    122       0x01E4       USART F1 Rx Complete
 __vector_123:   JMP     __unhandled_interrupt      ;    123       0x01E8       USART F1 Data Register Empty
-__vector_124:	JMP     __unhandled_interrupt      ;    124       0x01EC       USART F1 Tx Complete
+__vector_124:   JMP     __unhandled_interrupt      ;    124       0x01EC       USART F1 Tx Complete
 
-__unhandled_interrupt:  ;JMP     __unhandled_interrupt
+__unhandled_interrupt:	;JMP     __unhandled_interrupt

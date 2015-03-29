@@ -21,7 +21,7 @@
 
 		.global TickISR
 		.global usartc0_rx_isr
-		.global usartd0_rx_isr
+		.global usartf0_rx_isr
 		.global pushbutton_timer_isr
 
 
@@ -35,7 +35,7 @@
 		.extern OSIntExit
 
 		.extern usartc0_rx_isr_handler
-		.extern usartd0_rx_isr_handler
+		.extern usartf0_rx_isr_handler
 		.extern	pushbutton_timer_isr_handler
 
 
@@ -133,7 +133,7 @@ usartc0_rx_isr_1:
 
         CALL    OSIntExit                                       ; Notify uC/OS-II about end of ISR
 
-        LDS     R26,OSTCBCur                                    ;     OSTCBCur->OSTCBStkPtr = X
+        LDS     R26,OSTCBCur                                    ; OSTCBCur->OSTCBStkPtr = X
         LDS     R27,OSTCBCur+1                                  ;                         X = Y = SP
         
         POP_ALL                                                 ; Restore all registers
@@ -142,9 +142,9 @@ usartc0_rx_isr_1:
 
 ;/*$PAGE*/
 ;**********************************************************************************************
-;*                                       USARTD0 Rx ISR
+;*                                       USARTF0 Rx ISR
 ;*
-;* Description: This function is invoked when USARTD0 receives a character
+;* Description: This function is invoked when USARTF0 receives a character
 ;*
 ;* Arguments  : none
 ;*
@@ -155,13 +155,13 @@ usartc0_rx_isr_1:
 ;*                 if (OSIntNesting == 1) {
 ;*                     OSTCBCur->OSTCBStkPtr = SP
 ;*                 }
-;*                 usartd0_rx_isr_handler();
+;*                 usartf0_rx_isr_handler();
 ;*                 OSIntExit();
 ;*                 Restore all registers
 ;*                 Return from interrupt;
 ;**********************************************************************************************
         
-usartd0_rx_isr:        
+usartf0_rx_isr:        
         PUSH_ALL                                                ; Save all registers and status register        
 
         LDS     R16,OSIntNesting                                ; Notify uC/OS-II of ISR
@@ -169,7 +169,7 @@ usartd0_rx_isr:
         STS     OSIntNesting,R16                                ;
 
         CPI     R16,1                                           ; if (OSIntNesting == 1) {
-        BRNE    usartd0_rx_isr_1
+        BRNE    usartf0_rx_isr_1
 
         SAVE_SP				                                    ; X = SP 		
 		LDS     R28,OSTCBCur                                    ; OSTCBCur->OSTCBStkPtr = X
@@ -179,12 +179,12 @@ usartd0_rx_isr:
         ST      Y+,R27                                          ; }
 
 
-usartd0_rx_isr_1:
-        CALL    usartd0_rx_isr_handler                          ; Call Handler written in C
+usartf0_rx_isr_1:
+        CALL    usartf0_rx_isr_handler                          ; Call Handler written in C
 
         CALL    OSIntExit                                       ; Notify uC/OS-II about end of ISR
 
-        LDS     R26,OSTCBCur                                    ;     OSTCBCur->OSTCBStkPtr = X
+        LDS     R26,OSTCBCur                                    ; OSTCBCur->OSTCBStkPtr = X
         LDS     R27,OSTCBCur+1                                  ;                         X = Y = SP
         
         POP_ALL                                                 ; Restore all registers
